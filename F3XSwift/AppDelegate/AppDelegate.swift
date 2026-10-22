@@ -15,7 +15,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSTableViewDelegate, NSTable
     @IBOutlet weak var volumeTable: NSTableView!
 
     @IBOutlet weak var testButton: NSButton!
-    @IBOutlet weak var skipWriteButton: NSButton!
+    @IBOutlet weak var testModeButton: NSPopUpButton!
     
     var testAndProgressController: F3STestAndProgressWindowController?
     var resultDisplayController: F3SResultsController?
@@ -126,10 +126,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSTableViewDelegate, NSTable
     
     @IBAction func runTest(_ sender: Any?) {
         
-        /*if self.datasource.volumes![self.volumeTable.selectedRow].freespace == "0 KB" && self.skipWriteButton.state == .off {
-            check wether 0 kb due to test files or other content. test files get deleted, other content doesn't.
-        }*/
-        
         if self.testAndProgressController == nil {
             self.testAndProgressController = F3STestAndProgressWindowController(windowNibName: "F3STestAndProgressWindowController")
         }
@@ -137,7 +133,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSTableViewDelegate, NSTable
         let row = self.volumeTable.selectedRow
         
         self.testAndProgressController?.volume = (self.datasource.volumes![row] )
-        self.testAndProgressController?.skipWrite = self.skipWriteButton.state == .on
+        self.testAndProgressController?.mode = F3SRunner.TestMode(rawValue: self.testModeButton.selectedTag()) ?? .writeAndRead
         
         switch self.testAndProgressController?.requestVolumeAccess() {
         case .cancelled:
@@ -217,13 +213,23 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSTableViewDelegate, NSTable
                         alert.runModal()
                     }
                 }
+            case 2:
+                self.testAndProgressController?.close()
+                self.testAndProgressController = nil
+                DispatchQueue.main.async {
+                    let alert = NSAlert()
+                    alert.messageText = "Write complete"
+                    alert.informativeText = "Test files have been written. Select Read only to verify them. The written data has not yet been verified."
+                    alert.alertStyle = .informational
+                    alert.runModal()
+                }
             case 10:
             self.testAndProgressController?.close()
             self.testAndProgressController = nil
             DispatchQueue.main.async {
                 let alert = NSAlert()
-                alert.messageText = "Failed to start write task"
-                alert.informativeText = "The write test couldn't be started. The card has no empty space!"
+                alert.messageText = "Write step failed"
+                alert.informativeText = "The write step did not finish successfully or wrote no test data. No read verification was started."
                 alert.alertStyle = .warning
                 alert.runModal()
             }
@@ -232,8 +238,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSTableViewDelegate, NSTable
             self.testAndProgressController = nil
             DispatchQueue.main.async {
                 let alert = NSAlert()
-                alert.messageText = "Failed to start read task"
-                alert.informativeText = "The read test couldn't be started. The card does not contain test files from a write test."
+                alert.messageText = "Read step failed"
+                alert.informativeText = "The read step did not finish successfully. Read only requires existing .h2w test files on the selected volume."
                 alert.alertStyle = .warning
                 alert.runModal()
             }

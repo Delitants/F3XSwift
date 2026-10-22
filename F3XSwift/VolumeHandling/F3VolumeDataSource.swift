@@ -25,6 +25,16 @@ class F3VolumeDataSource: NSObject {
         super.init()
         self.startObservingDisks()
     }
+
+    static func isUsableVolume(at url: URL) -> Bool {
+        guard let values = try? url.resourceValues(forKeys: [.isVolumeKey, .volumeIsReadOnlyKey, .volumeIsLocalKey, .volumeIsInternalKey]) else {
+            return false
+        }
+        // External SSDs commonly report volumeIsEjectable == false. Identify
+        // external storage directly, and keep internal and network volumes out.
+        return values.isVolume == true && values.volumeIsReadOnly == false
+            && values.volumeIsLocal == true && values.volumeIsInternal == false
+    }
     
     func fetchVolumes() {
         let volumeKeys = [URLResourceKey.isVolumeKey, URLResourceKey.isWritableKey, URLResourceKey.volumeIdentifierKey]
@@ -41,14 +51,7 @@ class F3VolumeDataSource: NSObject {
         
         while url != nil {
             
-            var isUsable : Bool = false
-            
-            if let resouceValues = try? url?.resourceValues(forKeys: [.isVolumeKey, .isWritableKey, .volumeIsEjectableKey, .volumeIsReadOnlyKey]) {
-                let isVolume : Bool = resouceValues.isVolume ?? false
-                let isWritable : Bool = !(resouceValues.volumeIsReadOnly ?? true)
-                let isEjectable: Bool = resouceValues.volumeIsEjectable ?? false
-                isUsable = isVolume && isWritable && isEjectable
-            }
+            let isUsable = Self.isUsableVolume(at: url!)
             
             let volume : F3Volume = F3Volume(mountPoint: url!, _usable: isUsable, _volumeIdentifier: nil, attributes: nil)
             volumes.append(volume)

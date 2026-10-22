@@ -8,6 +8,14 @@
 import Foundation
 
 class F3SRunner {
+    enum TestMode: Int {
+        case writeAndRead = 0
+        case writeOnly = 1
+        case readOnly = 2
+    }
+
+    private let toolBundle: Bundle
+    private var mode: TestMode = .writeAndRead
         
     typealias F3SRunnerProgressHandler = ((F3SRunner) -> Void)
     
@@ -44,7 +52,8 @@ class F3SRunner {
         print("Runner deinit")
     }
     
-    init() {
+    init(toolBundle: Bundle = .main) {
+        self.toolBundle = toolBundle
         self.progressFormatter.format = "x.xx%"
         self.progressFormatter.decimalSeparator = "."
     }
@@ -81,10 +90,14 @@ class F3SRunner {
     }
     var progressFormatter = NumberFormatter()
     var info: Dictionary<String, String>?
-    
-    func run(skipWrite: Bool = false) {
+
+    func run(mode: TestMode) {
+        self.mode = mode
+        self.results = nil
+        self.writeData = nil
+        self.readData = nil
         self.backgroundQueue.async {
-            if !skipWrite {
+            if mode != .readOnly {
                 self.state = .F3SRunnerStateWriting
                 self.runWriteTask()
             } else {
@@ -95,73 +108,73 @@ class F3SRunner {
     }
     
     func cancel() {
-        if self.state == .F3SRunnerStateWriting {
-            self.writeTask!.terminate()
-        }
-        if self.state == .F3SRunnerStateReading {
-            self.readTask!.terminate()
-        }
-        self.state = .F3SRunnerStateCancelled;
+        self.state = .F3SRunnerStateCancelled
+        self.writeTask?.terminate()
+        self.readTask?.terminate()
     }
 
     private func runWriteTask() {
-        guard let cmdURL = Bundle.main.url(forResource: "f3write", withExtension: nil) else {
-            // ERROR HANDLING
+        guard let cmdURL = toolBundle.url(forResource: "f3write", withExtension: nil) else {
+            self.state = .F3SRunnerStateFailed
             return
         }
         self.writeTask = VRTask(executableURL: cmdURL)
         self.writeTask?.arguments = ["--show-progress=1", self.volumeURL!.path]
         self.writeData = String()
-        weak var weakself = self
-        
-        self.writeTask!.setOutputHandler { (output) in
-            weakself?.writeData?.append(output)
-            // f3 <= 8 printed "Average writing speed:", f3 >= 9 prints "Average sequential write speed:"
-            if output.contains("Average writing speed:") || output.contains("Average sequential write speed:") {
-                weakself?.finishedWriting()
-            }
-            weakself?.parseProgressOutput(output: output)
+        self.writeTask!.setOutputHandler { [weak self] output in
+            self?.writeData?.append(output)
+            self?.parseProgressOutput(output: output)
         }
 
         if !(self.writeTask?.launch() ?? false) {
             self.state = .F3SRunnerStateFailed
+            return
         }
+        guard self.state != .F3SRunnerStateCancelled else { return }
+        let output = self.writeData ?? ""
+        guard self.writeTask?.terminationStatus == 0,
+              !output.contains("NO DATA"),
+              output.contains("Average writing speed:") || output.contains("Average sequential write speed:") else {
+            self.state = .F3SRunnerStateFailedWriting
+            return
+        }
+        self.finishedWriting()
     }
     
     func finishedWriting() {
-        //try? self.writeData!.write(to: URL(fileURLWithPath: "/Users/vrunkel/Desktop/writedata.txt"), atomically: true, encoding: .utf8)
         self.info = nil
+        if self.mode == .writeOnly {
+            self.progress = 100
+            self.state = .F3SRunnerStateCompleted
+            return
+        }
         self.progress = 0
         self.state = .F3SRunnerStateReading
         self.runReadTask()
     }
     
     func runReadTask() {
-        guard let cmdURL = Bundle.main.url(forResource: "f3read", withExtension: nil) else {
-            // ERROR HANDLING
+        guard let cmdURL = toolBundle.url(forResource: "f3read", withExtension: nil) else {
+            self.state = .F3SRunnerStateFailed
             return
         }
         self.readTask = VRTask(executableURL: cmdURL)
         self.readTask?.arguments = ["--show-progress=1", self.volumeURL!.path]
         self.readData = String()
-        weak var weakself = self
-        
-        self.readTask!.setOutputHandler { (output) in
-            weakself?.readData?.append(output)
-            // f3 <= 8 printed "Reading speed not available" when no test files were found,
-            // f3 >= 9 prints "Average sequential read speed: NO DATA" instead.
-            if output.contains("Reading speed not available") || output.contains("Average sequential read speed: NO DATA") {
-                weakself?.finishedReading(success: false)
-            }
-            else if output.contains("Average reading speed:") || output.contains("Average sequential read speed:") {
-                weakself?.finishedReading()
-            }
-            weakself?.parseProgressOutput(output: output)
+        self.readTask!.setOutputHandler { [weak self] output in
+            self?.readData?.append(output)
+            self?.parseProgressOutput(output: output)
         }
 
         if !(self.readTask?.launch() ?? false) {
             self.state = .F3SRunnerStateFailed
+            return
         }
+        guard self.state != .F3SRunnerStateCancelled else { return }
+        let output = self.readData ?? ""
+        let hasSummary = output.contains("Average reading speed:") || output.contains("Average sequential read speed:")
+        let hasNoData = output.contains("Reading speed not available") || output.contains("NO DATA")
+        self.finishedReading(success: self.readTask?.terminationStatus == 0 && hasSummary && !hasNoData)
     }
     
     func finishedReading(success: Bool = true) {
@@ -181,10 +194,6 @@ class F3SRunner {
         let bs = String(UnicodeScalar(8))
         let cleanOutput1 = output.replacingOccurrences(of: bs, with: "")
         let cleanOutput = cleanOutput1.replacingOccurrences(of: " ", with: "")
-        
-        if cleanOutput.contains("Nospace") {
-            self.state = .F3SRunnerStateFailedWriting
-        }
         
         if cleanOutput.contains("Removing") {
             var info = Dictionary<String,String>()

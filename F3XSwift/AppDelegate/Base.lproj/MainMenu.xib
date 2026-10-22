@@ -15,7 +15,7 @@
         <customObject id="-3" userLabel="Application" customClass="NSObject"/>
         <customObject id="Voe-Tx-rLC" customClass="AppDelegate" customModule="F3XSwift" customModuleProvider="target">
             <connections>
-                <outlet property="skipWriteButton" destination="14r-jU-F7k" id="1Pg-zC-56V"/>
+                <outlet property="testModeButton" destination="14r-jU-F7k" id="1Pg-zC-56V"/>
                 <outlet property="testButton" destination="FS9-AY-3js" id="Y6y-oZ-Kxu"/>
                 <outlet property="volumeTable" destination="1s2-sH-IFt" id="KGY-Lc-QMp"/>
                 <outlet property="window" destination="QvC-M9-y7g" id="gIp-Ho-8D9"/>
@@ -856,14 +856,27 @@
                             <action selector="runTest:" target="Voe-Tx-rLC" id="MVq-aU-iFe"/>
                         </connections>
                     </button>
-                    <button verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="14r-jU-F7k">
-                        <rect key="frame" x="18" y="18" width="81" height="18"/>
+                    <popUpButton verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="14r-jU-F7k">
+                        <rect key="frame" x="18" y="15" width="200" height="25"/>
                         <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
-                        <buttonCell key="cell" type="check" title="skip write" bezelStyle="regularSquare" imagePosition="left" inset="2" id="WUP-Nq-d3p">
-                            <behavior key="behavior" changeContents="YES" doesNotDimImage="YES" lightByContents="YES"/>
+                        <popUpButtonCell key="cell" type="push" title="Write + Read" bezelStyle="rounded" alignment="left" lineBreakMode="truncatingTail" borderStyle="border" imageScaling="axesIndependently" inset="2" selectedItem="ssd-mode-both" id="WUP-Nq-d3p">
+                            <behavior key="behavior" lightByBackground="YES" lightByGray="YES"/>
                             <font key="font" metaFont="system"/>
-                        </buttonCell>
-                    </button>
+                            <menu key="menu" title="Test mode" id="ssd-mode-menu">
+                                <items>
+                                    <menuItem title="Write + Read" state="on" id="ssd-mode-both">
+                                        <modifierMask key="keyEquivalentModifierMask"/>
+                                    </menuItem>
+                                    <menuItem title="Write only" tag="1" id="ssd-mode-write">
+                                        <modifierMask key="keyEquivalentModifierMask"/>
+                                    </menuItem>
+                                    <menuItem title="Read only" tag="2" id="ssd-mode-read">
+                                        <modifierMask key="keyEquivalentModifierMask"/>
+                                    </menuItem>
+                                </items>
+                            </menu>
+                        </popUpButtonCell>
+                    </popUpButton>
                 </subviews>
             </view>
             <point key="canvasLocation" x="51" y="-102"/>

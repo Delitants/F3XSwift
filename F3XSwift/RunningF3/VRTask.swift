@@ -15,6 +15,10 @@ class VRTask {
         }
     }
     var executableURL: URL?
+    var terminationStatus: Int32? {
+        guard let task = self._task, !task.isRunning else { return nil }
+        return task.terminationStatus
+    }
 
     /**
      Text encoding for the task's input and output. The default is NSUTF8StringEncoding.
@@ -122,13 +126,6 @@ class VRTask {
         self.outputHandler = outputHandler
         let pipe = Pipe()
         self._task?.standardOutput = pipe
-        pipe.fileHandleForReading.readabilityHandler = { [weak self] handle in
-            guard let self = self else { return }
-            let data = handle.availableData
-            if let output = String(data: data, encoding: self.encoding ?? .utf8) {
-                self.outputHandler?(output)
-            }
-        }
     }
 
     /**
@@ -144,25 +141,31 @@ class VRTask {
         if task.standardError == nil {
             task.standardError = task.standardOutput
         }
-        task.terminationHandler = { [weak self] process in
-            VRTask.stopFileHandle(standardoutputorerror: process.standardOutput)
-            VRTask.stopFileHandle(standardoutputorerror: process.standardError)
-
-            if let self = self {
-                self.completionHandler?(self)
-            }
-        }
         do {
             try task.run()
         } catch {
             return false
         }
+        // Drain output on the runner's background queue before reporting exit.
+        // A termination callback can otherwise discard the final summary bytes.
+        if let pipe = task.standardOutput as? Pipe {
+            while true {
+                let data = pipe.fileHandleForReading.availableData
+                if data.isEmpty { break }
+                if let output = String(data: data, encoding: self.encoding ?? .utf8) {
+                    self.outputHandler?(output)
+                }
+            }
+        }
         task.waitUntilExit()
+        self.completionHandler?(self)
         return true
     }
 
     func terminate() {
-        self._task?.terminate()
+        if self._task?.isRunning == true {
+            self._task?.terminate()
+        }
     }
 
 }

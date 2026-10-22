@@ -1,0 +1,5 @@
+.DS_Store
+build/
+.build/
+dist/
+SSD-BUILD-NOTES.txt

@@ -23,7 +23,8 @@ class F3STestAndProgressWindowController: NSWindowController {
     
     var runner: F3SRunner?
     var volume: F3Volume?
-    var skipWrite: Bool = false
+    var mode: F3SRunner.TestMode = .writeAndRead
+    private var hasFinished = false
     
     override func windowDidLoad() {
         super.windowDidLoad()
@@ -41,7 +42,9 @@ class F3STestAndProgressWindowController: NSWindowController {
         op.canChooseDirectories = true
         op.canCreateDirectories = false
         op.allowsMultipleSelection = false
-        op.message = "Please confirm write permissions for the selected volume"
+        op.message = self.mode == .readOnly
+            ? "Please confirm access to read test files on the selected volume"
+            : "Please confirm write permissions for the selected volume"
         op.directoryURL = volume.mountPoint
 
         guard op.runModal() == .OK else {
@@ -53,7 +56,8 @@ class F3STestAndProgressWindowController: NSWindowController {
         }
 
         let volumeURL = volume.mountPoint.resolvingSymlinksInPath().standardizedFileURL
-        guard selectedURL == volumeURL else {
+        guard selectedURL == volumeURL,
+              F3VolumeDataSource.isUsableVolume(at: selectedURL) else {
             return .failed
         }
 
@@ -69,8 +73,10 @@ class F3STestAndProgressWindowController: NSWindowController {
         }
         
         self.volumeTestLabel.stringValue = volume.name
+        self.hasFinished = false
         
         self.runner = F3SRunner.runnerWithVolume(at: volume.mountPoint, progressHandler: { (runner) in
+            guard !self.hasFinished else { return }
             switch runner.state {
             case .F3SRunnerStateWaiting:
                 self.explanationField.stringValue = "Waiting..."
@@ -118,16 +124,21 @@ class F3STestAndProgressWindowController: NSWindowController {
                 self.testProgress.startAnimation(nil)*/
                 
             case .F3SRunnerStateCancelled:
+                self.hasFinished = true
                 self.testProgress.stopAnimation(nil)
                 self.window!.sheetParent?.endSheet(self.window!, returnCode: NSApplication.ModalResponse(rawValue: -1))
             case .F3SRunnerStateCompleted:
+                self.hasFinished = true
                 self.testProgress.stopAnimation(nil)
-                self.window!.sheetParent?.endSheet(self.window!, returnCode: NSApplication.ModalResponse(rawValue: 1))
+                self.window!.sheetParent?.endSheet(self.window!, returnCode: NSApplication.ModalResponse(rawValue: self.mode == .writeOnly ? 2 : 1))
             case .F3SRunnerStateFailedWriting:
+                self.hasFinished = true
                 self.window!.sheetParent?.endSheet(self.window!, returnCode: NSApplication.ModalResponse(rawValue: 10))
             case .F3SRunnerStateFailedReading:
+                self.hasFinished = true
                 self.window!.sheetParent?.endSheet(self.window!, returnCode: NSApplication.ModalResponse(rawValue: 11))
             case .F3SRunnerStateFailed:
+                self.hasFinished = true
                 self.testProgress.stopAnimation(nil)
                 self.window!.sheetParent?.endSheet(self.window!, returnCode: NSApplication.ModalResponse(rawValue: 0))
             default:
@@ -136,7 +147,7 @@ class F3STestAndProgressWindowController: NSWindowController {
         })
         
         self.runner!.volumeID = volume.volumeIdentifier
-        self.runner!.run(skipWrite: self.skipWrite)
+        self.runner!.run(mode: self.mode)
     }
     
     @IBAction func cancelTest(_ sender: Any?) {

@@ -1,17 +1,17 @@
-## How to and when to use F3XSwift
+# Using F3XSwift SSD
 
-F3XSwift is based on the f3 tools to test sd cards for wrong capacity as well as sector defects. With F3XSwift you get a simple UI on macOS to work with these tools. If you are interested in more details you best [read up on f3](https://fight-flash-fraud.readthedocs.io/en/latest/index.html).
+1. Back up the selected drive. For a capacity check covering nearly all usable space, start with an empty volume.
+2. Open F3XSwift SSD and select a mounted, writable external volume. Internal and network volumes remain unavailable.
+3. Choose **Write + Read**, **Write only**, or **Read only** from the selector beside Test.
+4. Press **Test** and grant access to that exact volume in the macOS file panel.
+5. Keep the drive connected and the Mac awake until the selected steps finish.
 
-Otherwise lets go on. On your Mac this tool will query the available volumes aka disks and display a list. It also determines by some simple parameters if a volume may be an sd card. Mainly by looking at the possibility to eject it and to write data to it. If a volume qualifies it can be slected and tested.
+**Write + Read** fills free space with numbered `.h2w` files, then verifies that the files contain the expected data.
 
-After choosing your SD card volume, press the Test button. Because of App Sandbox restrictions, a file-open panel displays the selected disk and asks you to grant temporary access. Select that volume and confirm the panel. If you cancel, the test will not start. Otherwise, `f3write` fills the empty space on the SD card with test files. After writing finishes, a read test starts automatically.
+**Write only** stops after writing. Its completion message does not certify capacity or data integrity. Leave the test files on the drive and select Read only when ready to verify them.
 
-![screenshot writing test files](/docs/writing-screen.png)
+**Read only** reads existing `.h2w` files. It never starts `f3write` and cannot test previously unwritten free space. It reports failure if no test data is available.
 
-The read test uses f3read and can be started without writing if your sd card already has the test files. This can be done by choosing skip write before starting the test.
+The app does not erase or repartition the device, but a counterfeit drive can overwrite existing files when its true capacity is exceeded. F3 also replaces old numbered F3 test files during a new write run. Use a backup and choose the target carefully.
 
-![screenshot reading test files](/docs/reading-screen.png)
-
-After the test finishes a simple result is displayed of either approved or failed test.
-
-![screenshot test result](/docs/result.png)
+The engine supports 1 TB, 2 TB and larger volumes with 64-bit counters. Its 1 GiB file size is a file chunk, not the total test limit. Separate partitions are tested independently.
