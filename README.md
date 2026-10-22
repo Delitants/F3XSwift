@@ -13,6 +13,16 @@ This is an SSD-focused fork of [Volker Runkel's F3XSwift](https://github.com/vru
 - F3 v10.0 `f3write` and `f3read` are included.
 - The app is locally ad-hoc signed, not Apple notarized.
 
+## Screenshots
+
+The main window with **Write + Read** selected:
+
+![F3XSwift SSD main window with an external SSD selected and Write + Read mode](docs/screenshots/app-overview.jpg)
+
+| Write only | Read only |
+| --- | --- |
+| ![F3XSwift SSD with Write only selected](docs/screenshots/write-only.jpg) | ![F3XSwift SSD with Read only selected](docs/screenshots/read-only.jpg) |
+
 ## Test modes
 
 | Mode | What it does |
