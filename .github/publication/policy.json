@@ -1,0 +1,11 @@
+{
+  "schema": 1,
+  "repository": "Delitants/F3XSwift",
+  "baseline": "51887ec7c9f5c511927e3dec5ae697d75ba8ed39",
+  "public_docs": [],
+  "public_data": [],
+  "release_assets": [
+    "F3XSwift-SSD-*-macos-arm64.zip",
+    "F3XSwift-SSD-*-SHA256SUMS.txt"
+  ]
+}
